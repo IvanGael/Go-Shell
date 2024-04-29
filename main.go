@@ -124,9 +124,12 @@ func executeCommand(input string) {
 			fmt.Println(env)
 		}
 	case "clear":
-		cmd := exec.Command("clear")
+		cmd := exec.Command("cls")
 		cmd.Stdout = os.Stdout
-		cmd.Run()
+		err := cmd.Run()
+		if err != nil {
+			return
+		}
 	case "help":
 		fmt.Println("Available commands:")
 		fmt.Println("  exit   - Exit the shell")
