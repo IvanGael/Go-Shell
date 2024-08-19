@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 )
 
+var commandHistory []string
+
 func main() {
+	setupSignalHandler()
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -20,7 +24,8 @@ func main() {
 		}
 		input := scanner.Text()
 
-		// Parse multiple commands separated by semicolons
+		commandHistory = append(commandHistory, input)
+
 		commands := strings.Split(input, ";")
 		for _, command := range commands {
 			executeCommand(strings.TrimSpace(command))
@@ -28,8 +33,17 @@ func main() {
 	}
 }
 
+func setupSignalHandler() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\nReceived interrupt signal. Exiting...")
+		os.Exit(0)
+	}()
+}
+
 func executeCommand(input string) {
-	// Parse pipe operations
 	pipes := strings.Split(input, "|")
 
 	if len(pipes) > 1 {
@@ -37,7 +51,6 @@ func executeCommand(input string) {
 		return
 	}
 
-	// Parse command and arguments
 	parts := strings.Fields(input)
 	if len(parts) == 0 {
 		return
@@ -58,8 +71,9 @@ func executeCommand(input string) {
 			fmt.Println("cd:", err)
 		}
 	case "history":
-		// Implement history functionality
-		fmt.Println("History")
+		for i, cmd := range commandHistory {
+			fmt.Printf("%d %s\n", i+1, cmd)
+		}
 	case "ls":
 		dir := "."
 		if len(args) > 0 {
@@ -88,6 +102,15 @@ func executeCommand(input string) {
 		err := os.Mkdir(args[0], 0755)
 		if err != nil {
 			fmt.Println("mkdir:", err)
+		}
+	case "rmdir":
+		if len(args) == 0 {
+			fmt.Println("rmdir: missing directory name")
+			return
+		}
+		err := os.Remove(args[0])
+		if err != nil {
+			fmt.Println("rmdir:", err)
 		}
 	case "rm":
 		if len(args) == 0 {
@@ -132,22 +155,22 @@ func executeCommand(input string) {
 		}
 	case "help":
 		fmt.Println("Available commands:")
-		fmt.Println("  exit   - Exit the shell")
-		fmt.Println("  cd     - Change directory")
-		fmt.Println("  history- Show command history")
-		fmt.Println("  ls     - List files in directory")
-		fmt.Println("  pwd    - Print current directory")
-		fmt.Println("  mkdir  - Create a directory")
-		fmt.Println("  rm     - Remove file(s)")
-		fmt.Println("  cat    - Concatenate and display file(s)")
-		fmt.Println("  echo   - Display message")
-		fmt.Println("  date   - Print current date and time")
-		fmt.Println("  whoami - Print current user")
-		fmt.Println("  env    - Print environment variables")
-		fmt.Println("  clear  - Clear the screen")
-		fmt.Println("  help   - Display this help message")
+		fmt.Println("  exit    - Exit the shell")
+		fmt.Println("  cd      - Change directory")
+		fmt.Println("  history - Show command history")
+		fmt.Println("  ls      - List files in directory")
+		fmt.Println("  pwd     - Print current directory")
+		fmt.Println("  mkdir   - Create a directory")
+		fmt.Println("  rmdir   - Remove a directory")
+		fmt.Println("  rm      - Remove file(s)")
+		fmt.Println("  cat     - Concatenate and display file(s)")
+		fmt.Println("  echo    - Display message")
+		fmt.Println("  date    - Print current date and time")
+		fmt.Println("  whoami  - Print current user")
+		fmt.Println("  env     - Print environment variables")
+		fmt.Println("  clear   - Clear the screen")
+		fmt.Println("  help    - Display this help message")
 	default:
-		// Execute external command
 		cmd := exec.Command(cmd, args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
